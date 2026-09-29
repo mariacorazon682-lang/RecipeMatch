@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'signup_screen.dart';
-import 'home_screen.dart';
+import '../Auth.dart';
+import '../signup_screen.dart';
+import '../widget_tree.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,8 +15,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final Auth _auth = Auth();
   bool _keepMeLoggedIn = false;
   bool _isLoading = false;
+  String? errorMessage = "";
 
   @override
   void dispose() {
@@ -26,41 +30,68 @@ class _LoginScreenState extends State<LoginScreen> {
   void _handleLogin() async {
     setState(() {
       _isLoading = true;
+      errorMessage = "";
     });
 
     final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
     try {
-      if (email.isNotEmpty) {
-        final dbRef = FirebaseDatabase.instance.ref("logins");
-        await dbRef.push().set({
-          "email": email,
-          "timestamp": ServerValue.timestamp,
+      if (email.isNotEmpty && password.isNotEmpty) {
+        await _auth.signInWithEmailAndPassword(email, password);
+
+        try {
+          final dbRef = FirebaseDatabase.instance.ref("logins");
+          await dbRef.push().set({
+            "email": email,
+            "timestamp": ServerValue.timestamp,
+          });
+        } catch (e) {
+          debugPrint("Database logging note: $e");
+        }
+
+        if (!mounted) return;
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged in successfully! Welcome to RecipeMatch.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const WidgetTree(),
+          ),
+        );
+      } else {
+        setState(() {
+          _isLoading = false;
+          errorMessage = 'Please enter both email and password.';
         });
       }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential' || e.code == 'invalid-email') {
+          errorMessage = 'Incorrect email or password. Please try again.';
+        } else {
+          errorMessage = e.message ?? 'Login failed. Please check your credentials.';
+        }
+      });
     } catch (e) {
-      debugPrint("Database logging note: $e");
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        errorMessage = 'Login failed: $e';
+      });
     }
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Logged in successfully! Welcome to RecipeMatch.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HomeScreen(),
-      ),
-    );
   }
 
   @override
@@ -222,7 +253,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 40),
+
+                    if (errorMessage != null && errorMessage!.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.amberAccent, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 30),
                     // Log In Button
                     SizedBox(
                       width: 180,

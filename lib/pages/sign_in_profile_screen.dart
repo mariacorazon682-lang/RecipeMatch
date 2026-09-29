@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'signup_screen.dart';
-import 'home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import '../Auth.dart';
+import '../signup_screen.dart';
+import '../widget_tree.dart';
 
 class SignInProfileScreen extends StatefulWidget {
   const SignInProfileScreen({super.key});
@@ -10,10 +14,13 @@ class SignInProfileScreen extends StatefulWidget {
 }
 
 class _SignInProfileScreenState extends State<SignInProfileScreen> {
-  final _emailController =
-      TextEditingController(text: 'maria.chef@example.com');
-  final _passwordController = TextEditingController(text: '1234567890');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final Auth _auth = Auth();
   bool _keepMeLoggedIn = true;
+  bool _isLoading = false;
+  String? errorMessage = "";
+  File? _profileImage;
 
   @override
   void dispose() {
@@ -22,21 +29,90 @@ class _SignInProfileScreenState extends State<SignInProfileScreen> {
     super.dispose();
   }
 
-  void _handleSignIn() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Signed in successfully!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    try {
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          _profileImage = File(pickedFile.path);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile picture updated from gallery!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+  void _handleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      errorMessage = "";
+    });
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    try {
+      if (email.isNotEmpty && password.isNotEmpty) {
+        await _auth.signInWithEmailAndPassword(email, password);
+
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Signed in successfully!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const WidgetTree()),
+          );
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+          errorMessage = 'Please enter both email and password.';
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential' || e.code == 'invalid-email') {
+          errorMessage = 'Incorrect email or password. Please try again.';
+        } else {
+          errorMessage = e.message ?? 'Sign in failed. Please check your credentials.';
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        errorMessage = 'Sign in failed: $e';
+      });
     }
   }
 
@@ -78,10 +154,10 @@ class _SignInProfileScreenState extends State<SignInProfileScreen> {
                           onPressed: () => Navigator.pop(context),
                         ),
                       ),
-                    const Icon(
-                      Icons.soup_kitchen_outlined,
-                      color: Color(0xFFFFB81C),
-                      size: 40,
+                    Image.asset(
+                      'assets/images/recipe match.png',
+                      height: 70,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -104,7 +180,56 @@ class _SignInProfileScreenState extends State<SignInProfileScreen> {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Profile Picture Center Section (Gallery Picker)
+              Center(
+                child: GestureDetector(
+                  onTap: _pickProfileImage,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 46,
+                        backgroundColor: const Color(0xFF0D3E26).withOpacity(0.1),
+                        backgroundImage: _profileImage != null
+                            ? FileImage(_profileImage!) as ImageProvider
+                            : const NetworkImage(
+                                'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop',
+                              ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFFB81C),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 16,
+                            color: Color(0xFF0D3E26),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Center(
+                child: Text(
+                  'Tap to change profile picture',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
 
               // Form Section
               Padding(
@@ -259,6 +384,30 @@ class _SignInProfileScreenState extends State<SignInProfileScreen> {
                       ],
                     ),
 
+                    if (errorMessage != null && errorMessage!.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(color: Colors.red, fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 28),
 
                     // Sign In Button
@@ -266,7 +415,7 @@ class _SignInProfileScreenState extends State<SignInProfileScreen> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _handleSignIn,
+                        onPressed: _isLoading ? null : _handleSignIn,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFB81C),
                           elevation: 0,
@@ -274,14 +423,23 @@ class _SignInProfileScreenState extends State<SignInProfileScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: const Text(
-                          'Sign In',
-                          style: TextStyle(
-                            color: Color(0xFF0D3E26),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF0D3E26),
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  color: Color(0xFF0D3E26),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
 

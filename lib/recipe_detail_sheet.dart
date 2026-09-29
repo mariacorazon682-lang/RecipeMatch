@@ -67,6 +67,14 @@ void showRecipeDetailSheet(BuildContext context, Recipe recipe) {
                         width: double.infinity,
                         height: 200,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: double.infinity,
+                          height: 200,
+                          color: const Color(0xFFE2F0D9),
+                          child: const Center(
+                            child: Icon(Icons.restaurant, size: 48, color: Color(0xFF0D3E26)),
+                          ),
+                        ),
                       ),
                     ),
 

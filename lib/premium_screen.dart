@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'sign_in_profile_screen.dart';
+import 'pages/sign_in_profile_screen.dart';
 
 class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});

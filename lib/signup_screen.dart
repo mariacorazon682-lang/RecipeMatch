@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'home_screen.dart';
+import 'Auth.dart';
+import 'widget_tree.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,8 +15,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final Auth _auth = Auth();
   bool _keepMeLoggedIn = false;
   bool _isLoading = false;
+  String? errorMessage = "";
 
   @override
   void dispose() {
@@ -27,42 +31,82 @@ class _SignupScreenState extends State<SignupScreen> {
   void _handleSignup() async {
     setState(() {
       _isLoading = true;
+      errorMessage = "";
     });
 
     final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
 
     try {
-      if (email.isNotEmpty) {
-        final dbRef = FirebaseDatabase.instance.ref("users");
-        await dbRef.push().set({
-          "email": email,
-          "createdAt": ServerValue.timestamp,
+      if (email.isNotEmpty && password.isNotEmpty) {
+        if (password != confirmPassword) {
+          setState(() {
+            _isLoading = false;
+            errorMessage = 'Passwords do not match!';
+          });
+          return;
+        }
+
+        await _auth.signUpWithEmailAndPassword(email, password);
+
+        try {
+          final dbRef = FirebaseDatabase.instance.ref("users");
+          await dbRef.push().set({
+            "email": email,
+            "createdAt": ServerValue.timestamp,
+          });
+        } catch (e) {
+          debugPrint("Database signup note: $e");
+        }
+
+        if (!mounted) return;
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully! Welcome to RecipeMatch.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const WidgetTree(),
+          ),
+          (route) => false,
+        );
+      } else {
+        setState(() {
+          _isLoading = false;
+          errorMessage = 'Please enter email and password.';
         });
       }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (e.code == 'email-already-in-use') {
+          errorMessage = 'An account already exists for this email address.';
+        } else if (e.code == 'weak-password') {
+          errorMessage = 'The password provided is too weak.';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'The email address is badly formatted.';
+        } else {
+          errorMessage = e.message ?? 'Signup failed. Please try again.';
+        }
+      });
     } catch (e) {
-      debugPrint("Database signup note: $e");
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        errorMessage = 'Signup failed: $e';
+      });
     }
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Account created successfully! Welcome to RecipeMatch.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HomeScreen(),
-      ),
-      (route) => false,
-    );
   }
 
   @override
@@ -228,7 +272,32 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+
+                    if (errorMessage != null && errorMessage!.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.amberAccent, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 30),
                     // Sign In Button
                     SizedBox(
                       width: 180,

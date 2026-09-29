@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'sign_in_profile_screen.dart';
+import 'pages/sign_in_profile_screen.dart';
 import 'recipe_detail_sheet.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -10,88 +10,7 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  final List<Map<String, dynamic>> _savedRecipes = [
-    {
-      'title': 'Lemony herb pasta',
-      'tag': 'WEEKNIGHT',
-      'tagColor': const Color(0xFFE2F0D9),
-      'textColor': const Color(0xFF385723),
-      'time': '30 min',
-      'rating': '4.9',
-      'imageUrl':
-          'https://images.unsplash.com/photo-1645112411341-6c4fd023714a?q=80&w=200&auto=format&fit=crop',
-      'ingredients': [
-        '200g pasta',
-        'Lemon juice & zest',
-        'Extra virgin olive oil',
-        'Fresh herbs & parmesan'
-      ],
-      'instructions': [
-        'Boil pasta until al dente.',
-        'Toss with olive oil, lemon juice, zest, and herbs.',
-        'Top with parmesan and serve.'
-      ],
-    },
-    {
-      'title': 'Crispy chilli salmon',
-      'tag': 'HIGH PROTEIN',
-      'tagColor': const Color(0xFFFCE4D6),
-      'textColor': const Color(0xFFC65911),
-      'time': '30 min',
-      'rating': '4.7',
-      'imageUrl':
-          'https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=200&auto=format&fit=crop',
-      'ingredients': [
-        '2 salmon fillets',
-        'Chili oil & soy sauce',
-        'Steamed jasmine rice'
-      ],
-      'instructions': [
-        'Pan sear salmon fillets until crispy.',
-        'Glaze with chili oil sauce.',
-        'Serve hot over rice.'
-      ],
-    },
-    {
-      'title': 'Garlic Parmesan Chicken',
-      'tag': 'HIGH PROTEIN',
-      'tagColor': const Color(0xFFFCE4D6),
-      'textColor': const Color(0xFFC65911),
-      'time': '25 min',
-      'rating': '4.8',
-      'imageUrl':
-          'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=200&auto=format&fit=crop',
-      'ingredients': [
-        '2 chicken breasts',
-        'Minced garlic & heavy cream',
-        'Parmesan cheese'
-      ],
-      'instructions': [
-        'Sear chicken breasts until golden.',
-        'Cook garlic cream sauce.',
-        'Simmer chicken in sauce.'
-      ],
-    },
-    {
-      'title': 'Crunchy Peanut Thai Salad',
-      'tag': 'VEGAN',
-      'tagColor': const Color(0xFFE1D5E7),
-      'textColor': const Color(0xFF60497A),
-      'time': '15 min',
-      'rating': '4.5',
-      'imageUrl':
-          'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=200&auto=format&fit=crop',
-      'ingredients': [
-        'Shredded cabbage & carrots',
-        'Crushed peanuts',
-        'Thai peanut dressing'
-      ],
-      'instructions': [
-        'Toss shredded vegetables in a large bowl.',
-        'Drizzle with peanut dressing and sprinkle peanuts.'
-      ],
-    },
-  ];
+  final List<Map<String, dynamic>> _savedRecipes = [];
 
   void _removeFavorite(int index) {
     final removed = _savedRecipes[index];
@@ -298,6 +217,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 width: 76,
                 height: 76,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 76,
+                  height: 76,
+                  color: const Color(0xFFE2F0D9),
+                  child: const Center(
+                    child: Icon(Icons.restaurant, size: 28, color: Color(0xFF0D3E26)),
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 14),
